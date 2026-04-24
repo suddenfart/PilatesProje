@@ -1,79 +1,68 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+
 from app.db.deps import get_db
 from app.models.booking import Booking
 from app.models.class_model import Class
+from app.models.user import User
 from app.models.user_package import UserPackage
-from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
 
-@router.post("/book")
-def create_booking(user_id: int, class_id: int, db: Session = Depends(get_db)):
+class BookingCreate(BaseModel):
+    user_id: int
+    class_id: int
 
-    # 🔒 TRANSACTION BAŞLAT
-    try:
-        with db.begin():
 
-            # 1. CLASS kilitle (race condition önlemek için)
-            class_obj = db.execute(
-                select(Class)
-                .where(Class.id == class_id)
-                .with_for_update()
-            ).scalar_one_or_none()
+@router.post("/")
+def create_booking(data: BookingCreate, db: Session = Depends(get_db)):
 
-            if not class_obj:
-                raise HTTPException(status_code=404, detail="Class not found")
+    user = db.query(User).filter(User.id == data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-            # 2. USER PACKAGE kilitle
-            package = db.execute(
-                select(UserPackage)
-                .where(UserPackage.user_id == user_id)
-                .with_for_update()
-            ).scalar_one_or_none()
+    class_obj = db.query(Class).filter(Class.id == data.class_id).first()
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Class not found")
 
-            if not package:
-                raise HTTPException(status_code=400, detail="User package not found")
+    existing = db.query(Booking).filter(
+        Booking.user_id == data.user_id,
+        Booking.class_id == data.class_id
+    ).first()
 
-            if package.remaining_sessions <= 0:
-                raise HTTPException(status_code=400, detail="No remaining sessions")
+    if existing:
+        raise HTTPException(status_code=400, detail="Already booked")
 
-            # 3. ZATEN BOOKING VAR MI?
-            existing = db.execute(
-                select(Booking).where(
-                    Booking.user_id == user_id,
-                    Booking.class_id == class_id
-                )
-            ).scalar_one_or_none()
+    # 💳 PACKAGE CHECK
+    package = db.query(UserPackage).filter(
+        UserPackage.user_id == data.user_id,
+        UserPackage.remaining_sessions > 0
+    ).first()
 
-            if existing:
-                raise HTTPException(status_code=400, detail="Already booked")
+    if not package:
+        raise HTTPException(status_code=400, detail="No sessions left")
 
-            # 4. CAPACITY KONTROL
-            booked_count = db.query(func.count(Booking.id)).filter(
-                Booking.class_id == class_id
-            ).scalar()
+    # 👥 CAPACITY CHECK
+    count = db.query(Booking).filter(
+        Booking.class_id == data.class_id
+    ).count()
 
-            if booked_count >= class_obj.capacity:
-                raise HTTPException(status_code=400, detail="Class is full")
+    if count >= class_obj.capacity:
+        raise HTTPException(status_code=400, detail="Class full")
 
-            # 5. BOOKING OLUŞTUR
-            booking = Booking(
-                user_id=user_id,
-                class_id=class_id,
-                created_at=datetime.utcnow()
-            )
-            db.add(booking)
+    # 🔥 BOOK
+    booking = Booking(
+        user_id=data.user_id,
+        class_id=data.class_id
+    )
 
-            # 6. PACKAGE DÜŞ
-            package.remaining_sessions -= 1
+    package.remaining_sessions -= 1
 
-            db.add(package)
+    db.add(booking)
+    db.add(package)
+    db.commit()
+    db.refresh(booking)
 
-        return {"message": "Booking successful"}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Booked"}

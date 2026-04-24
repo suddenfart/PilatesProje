@@ -8,5 +8,6 @@ class UserPackage(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     user_id = Column(Integer, ForeignKey("users.id"))
-    total_sessions = Column(Integer, default=10)
-    remaining_sessions = Column(Integer, default=10)
+
+    total_sessions = Column(Integer, default=0)
+    remaining_sessions = Column(Integer, default=0)

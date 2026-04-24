@@ -1,16 +1,26 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from app.core.settings import settings
 
-from app.core.config import DATABASE_URL
-print("DEBUG DB:", DATABASE_URL)
+# 🔥 PostgreSQL connection (tek doğru kaynak: settings.py)
 engine = create_engine(
-    DATABASE_URL,
-    echo=True,  # SQL log görmek için
-    pool_pre_ping=True
+    settings.DATABASE_URL,
+    pool_pre_ping=True,   # bağlantı koparsa otomatik kontrol eder
+    pool_size=10,
+    max_overflow=20
 )
 
+# 🔥 DB session factory
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
+
+# 🔥 FastAPI dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
