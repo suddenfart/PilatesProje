@@ -6,20 +6,18 @@ from app.db.deps import get_db
 from app.models.class_model import Class
 from app.schemas.class_schema import ClassCreate
 
-router = APIRouter(prefix="/classes", tags=["Classes"])
+router = APIRouter(tags=["Classes"])
 
 
 @router.post("/")
 def create_class(data: ClassCreate, db: Session = Depends(get_db)):
 
-    # datetime birleştirme
     start_dt = datetime.combine(data.date, data.start_time)
     end_dt = datetime.combine(data.date, data.end_time)
 
     if start_dt >= end_dt:
         raise HTTPException(status_code=400, detail="Invalid time range")
 
-    # overlap check
     existing = db.query(Class).filter(
         Class.start_time < end_dt,
         Class.end_time > start_dt
