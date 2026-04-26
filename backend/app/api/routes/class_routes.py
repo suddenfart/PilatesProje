@@ -1,43 +1,34 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
 
 from app.db.deps import get_db
 from app.models.class_model import Class
-from app.schemas.class_schema import ClassCreate
+from app.models.user import User
+from app.schemas.class_schema import ClassCreate, ClassOut
+from app.core.security import get_current_user
 
 router = APIRouter(prefix="/classes", tags=["Classes"])
 
 
-# 🧘 CREATE CLASS
-@router.post("/")
-def create_class(data: ClassCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=ClassOut)
+def create_class(
+    data: ClassCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # ⛔️ validation: time check
+    if data.start_time >= data.end_time:
+        raise HTTPException(
+            status_code=400,
+            detail="end_time must be after start_time"
+        )
 
-    start_dt = datetime.combine(data.date, data.start_time)
-    end_dt = datetime.combine(data.date, data.end_time)
-
-    if start_dt >= end_dt:
-        raise HTTPException(400, "Invalid time range")
-
-    if data.capacity <= 0:
-        raise HTTPException(400, "Invalid capacity")
-
-    # 👇 TEACHER CONFLICT CHECK (KRİTİK)
-    existing = db.query(Class).filter(
-        Class.teacher_id == data.teacher_id,
-        Class.start_time < end_dt,
-        Class.end_time > start_dt
-    ).first()
-
-    if existing:
-        raise HTTPException(400, "Teacher already has class in this time slot")
-
+    # 🧠 create class
     new_class = Class(
-        start_time=start_dt,
-        end_time=end_dt,
+        start_time=data.start_time,
+        end_time=data.end_time,
         capacity=data.capacity,
-        teacher_id=data.teacher_id,
-        status="active"
+        teacher_id=current_user.id  # 🔥 backend assigns teacher
     )
 
     db.add(new_class)
@@ -45,18 +36,3 @@ def create_class(data: ClassCreate, db: Session = Depends(get_db)):
     db.refresh(new_class)
 
     return new_class
-
-
-# 📋 GET CLASSES (OPTIONAL FILTER)
-@router.get("/")
-def get_classes(date: str = None, db: Session = Depends(get_db)):
-
-    query = db.query(Class)
-
-    if date:
-        query = query.filter(
-            Class.start_time >= date + " 00:00:00",
-            Class.start_time <= date + " 23:59:59"
-        )
-
-    return query.all()

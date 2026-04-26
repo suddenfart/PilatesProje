@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, DateTime, String
-from datetime import datetime
-
+from sqlalchemy import Column, Integer, DateTime, String, ForeignKey
+from sqlalchemy.orm import relationship
 from app.db.base import Base
-
+from datetime import datetime
 
 class Class(Base):
     __tablename__ = "classes"
@@ -21,3 +20,6 @@ class Class(Base):
 
     # 🧾 audit
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    teacher = relationship("User")
