@@ -4,10 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.session import engine
 from app.db.base import Base
 
-# MODELS (DB init için)
-from app.models import user, class_model, booking, user_package
-
-# ROUTES (DOĞRU PATH)
 from app.api.routes import (
     auth_routes,
     user_routes,
@@ -31,18 +27,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🧭 ROUTES INCLUDE
-app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
-app.include_router(user_routes.router, prefix="/users", tags=["Users"])
-app.include_router(class_routes.router, prefix="/classes", tags=["Classes"])
-app.include_router(booking_routes.router, prefix="/bookings", tags=["Bookings"])
-app.include_router(user_package_routes.router, prefix="/packages", tags=["Packages"])
-app.include_router(stripe_routes.router, prefix="/stripe", tags=["Stripe"])
+# 🧭 ROUTES (PREFIXLER ROUTER'DA)
+app.include_router(auth_routes.router)
+app.include_router(user_routes.router)
+app.include_router(class_routes.router)
+app.include_router(booking_routes.router)
+app.include_router(user_package_routes.router)
+app.include_router(stripe_routes.router)
 
 # 🏠 ROOT
 @app.get("/")
 def root():
     return {"message": "Pilates API running 🚀"}
 
-# 🧱 DB INIT (dev için)
+# 🧱 DB INIT (dev)
 Base.metadata.create_all(bind=engine)

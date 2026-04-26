@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy import Column, Integer, DateTime, String
+from datetime import datetime
+
 from app.db.base import Base
 
 
@@ -7,9 +9,15 @@ class Class(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 🔥 DB tarafı: tek gerçek kaynak datetime
+    # 🏷️ opsiyonel ama çok faydalı
+    title = Column(String(100), nullable=True)
+
+    # 🕒 gerçek zaman alanı
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
 
-    # 🧠 Studio kapasitesi
+    # 👥 kapasite
     capacity = Column(Integer, default=6, nullable=False)
+
+    # 🧾 audit
+    created_at = Column(DateTime, default=datetime.utcnow)

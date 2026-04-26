@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.db.deps import get_db
 from app.models.user_package import UserPackage
+from app.models.user import User
 
 router = APIRouter(prefix="/packages", tags=["User Packages"])
 
 
-# 📦 CREATE PACKAGE
+# 📦 CREATE PACKAGE (ADMIN ONLY OLDUĞUNU FARZ EDİYORUZ)
 @router.post("/create")
 def create_package(
     user_id: int,
@@ -15,21 +17,15 @@ def create_package(
     db: Session = Depends(get_db)
 ):
 
-    # 🔍 kullanıcıda zaten package var mı?
-    existing = db.query(UserPackage).filter(
-        UserPackage.user_id == user_id
-    ).first()
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="User already has a package"
-        )
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
 
     package = UserPackage(
         user_id=user_id,
         total_sessions=sessions,
-        remaining_sessions=sessions
+        remaining_sessions=sessions,
+        expiry_date=None
     )
 
     db.add(package)
@@ -37,57 +33,26 @@ def create_package(
     db.refresh(package)
 
     return {
-        "message": "Package created successfully",
-        "package_id": package.id,
-        "total_sessions": package.total_sessions,
-        "remaining_sessions": package.remaining_sessions
+        "message": "Package created",
+        "package_id": package.id
     }
 
 
-# 📊 GET USER PACKAGE
+# 📊 GET ALL USER PACKAGES
 @router.get("/user/{user_id}")
-def get_user_package(user_id: int, db: Session = Depends(get_db)):
+def get_user_packages(user_id: int, db: Session = Depends(get_db)):
 
-    package = db.query(UserPackage).filter(
+    packages = db.query(UserPackage).filter(
         UserPackage.user_id == user_id
-    ).first()
+    ).all()
 
-    if not package:
-        raise HTTPException(
-            status_code=404,
-            detail="Package not found"
-        )
-
-    return package
+    return packages
 
 
-# 🔁 DECREASE SESSION (BOOKING İÇİN KULLANILIR)
+# ⚠️ BU ENDPOINT KALDIRILMALI (DEPRECATED)
 @router.post("/decrease/{user_id}")
 def decrease_session(user_id: int, db: Session = Depends(get_db)):
-
-    package = db.query(UserPackage).filter(
-        UserPackage.user_id == user_id
-    ).first()
-
-    if not package:
-        raise HTTPException(
-            status_code=404,
-            detail="Package not found"
-        )
-
-    if package.remaining_sessions <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No remaining sessions"
-        )
-
-    package.remaining_sessions -= 1
-
-    db.add(package)
-    db.commit()
-    db.refresh(package)
-
-    return {
-        "message": "Session decreased",
-        "remaining_sessions": package.remaining_sessions
-    }
+    raise HTTPException(
+        status_code=410,
+        detail="Deprecated. Use /bookings instead"
+    )
