@@ -10,25 +10,32 @@ from app.core.security import get_current_user
 router = APIRouter(prefix="/classes", tags=["Classes"])
 
 
+# ✅ GET ALL CLASSES (PUBLIC - frontend bunu çağırıyor)
+@router.get("/", response_model=list[ClassOut])
+def get_classes(db: Session = Depends(get_db)):
+    classes = db.query(Class).all()
+    return classes
+
+
+# ✅ CREATE CLASS (AUTH REQUIRED - sadece login kullanıcı)
 @router.post("/", response_model=ClassOut)
 def create_class(
     data: ClassCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ⛔️ validation: time check
+    # ⛔ validation
     if data.start_time >= data.end_time:
         raise HTTPException(
             status_code=400,
             detail="end_time must be after start_time"
         )
 
-    # 🧠 create class
     new_class = Class(
         start_time=data.start_time,
         end_time=data.end_time,
         capacity=data.capacity,
-        teacher_id=current_user.id  # 🔥 backend assigns teacher
+        teacher_id=current_user.id
     )
 
     db.add(new_class)

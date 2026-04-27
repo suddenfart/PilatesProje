@@ -1,17 +1,28 @@
-const TOKEN_KEY = "token";
+import { api } from "./api";
 
-// 💾 SAVE TOKEN
-export const setToken = (token: string) => {
-  localStorage.setItem(TOKEN_KEY, token);
-};
+export async function login(email: string, password: string) {
+  const form = new URLSearchParams();
+  form.append("username", email);
+  form.append("password", password);
 
-// 📥 GET TOKEN
-export const getToken = () => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-};
+  const res = await fetch("http://127.0.0.1:8000/auth/login", {
+    method: "POST",
+    body: form,
+  });
 
-// ❌ REMOVE TOKEN
-export const removeToken = () => {
-  localStorage.removeItem(TOKEN_KEY);
-};
+  if (!res.ok) throw new Error("Login failed");
+
+  const data = await res.json();
+
+  localStorage.setItem("token", data.access_token);
+  localStorage.setItem("user_id", data.user_id);
+
+  return data;
+}
+
+export async function register(email: string, password: string) {
+  return api("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
