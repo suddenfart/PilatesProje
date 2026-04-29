@@ -8,18 +8,22 @@ class Class(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 🏷️ opsiyonel ama çok faydalı
+    # 🏷️ optional title
     title = Column(String(100), nullable=True)
 
-    # 🕒 gerçek zaman alanı
+    # 🕒 real scheduling (KEEP for backend logic)
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
 
-    # 👥 kapasite
+    # 📅 NEW: calendar grid support (FRONTEND FIX)
+    day = Column(Integer, nullable=True)   # 0=Mon ... 6=Sun
+    hour = Column(Integer, nullable=True)  # 8-20
+
+    # 👥 capacity
     capacity = Column(Integer, default=6, nullable=False)
 
     # 🧾 audit
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     teacher = relationship("User")

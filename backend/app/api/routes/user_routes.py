@@ -6,18 +6,16 @@ from app.models.user import User
 from app.schemas.user_schema import UserCreate, UserOut
 from app.core.security import hash_password
 
-# ⚠️ ADMIN ROUTE OLMALI
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# 👤 CREATE USER (SADECE ADMIN KULLANMALI)
 @router.post("/", response_model=UserOut)
 def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
     email = user_data.email.lower().strip()
 
-    existing_user = db.query(User).filter(User.email == email).first()
-    if existing_user:
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already exists")
 
     user = User(
@@ -34,10 +32,6 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-# 📋 GET ALL USERS (ADMIN ONLY)
 @router.get("/", response_model=list[UserOut])
 def get_users(db: Session = Depends(get_db)):
-
-    users = db.query(User).all()
-
-    return users
+    return db.query(User).all()

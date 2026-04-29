@@ -1,83 +1,65 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-/* =========================
-   🔐 LOGIN
-========================= */
-export async function login(email: string, password: string) {
-  const formData = new URLSearchParams();
+// =====================
+// TOKEN
+// =====================
+export function getToken() {
+  if (typeof window === "undefined") return null;
 
-  formData.append("username", email);
-  formData.append("password", password);
+  const user = localStorage.getItem("user");
+  if (!user) return null;
 
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formData.toString(),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.detail || "Login failed");
+  try {
+    return JSON.parse(user).access_token;
+  } catch {
+    return null;
   }
-
-  return data;
 }
 
-/* =========================
-   📅 CLASSES
-========================= */
-export async function getClasses() {
-  const userStr = localStorage.getItem("user");
+// =====================
+// SAFE FETCH
+// =====================
+async function safeFetch(url: string, options: any = {}) {
+  const token = getToken();
 
-  const token = userStr
-    ? JSON.parse(userStr).access_token || JSON.parse(userStr).token
-    : null;
-
-  const res = await fetch(`${API_URL}/classes`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.detail || "Failed to fetch classes");
-  }
-
-  return data;
-}
-
-/* =========================
-   📌 BOOKING
-========================= */
-export async function createBooking(classId: number) {
-  const userStr = localStorage.getItem("user");
-
-  const token = userStr
-    ? JSON.parse(userStr).access_token || JSON.parse(userStr).token
-    : null;
-
-  const res = await fetch(`${API_URL}/bookings`, {
-    method: "POST",
+  const res = await fetch(`${API_URL}${url}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
     },
-    body: JSON.stringify({
-      class_id: classId,
-    }),
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+
+  // 🔥 TOKEN EXPIRE HANDLING
+  if (res.status === 401) {
+    localStorage.removeItem("user");
+    window.location.href = "/auth/login";
+    throw new Error("Unauthorized");
+  }
 
   if (!res.ok) {
-    throw new Error(data.detail || "Booking failed");
+    throw new Error(data.detail || "API error");
   }
 
   return data;
+}
+
+// =====================
+// CLASSES
+// =====================
+export function getClasses() {
+  return safeFetch("/classes");
+}
+
+// =====================
+// BOOKINGS
+// =====================
+export function createBooking(class_id: number) {
+  return safeFetch(`/bookings?class_id=${class_id}`, {
+    method: "POST",
+  });
 }

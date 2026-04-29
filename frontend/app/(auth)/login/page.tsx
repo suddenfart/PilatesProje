@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/lib/api";
+import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,43 +11,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    console.log("CLICKED");
+    console.log("EMAIL:", email);
+    console.log("PASSWORD:", password);
+
     try {
-      const res = await login(email, password);
-
-      localStorage.setItem("user", JSON.stringify(res));
-
-      alert("Login successful");
-
+      await login(email, password);
       router.push("/classes");
-
-    } catch (err) {
-      alert("Login failed");
-      console.error(err);
+    } catch (err: any) {
+      console.error("LOGIN ERROR:", err.message);
+      alert(err.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
-      <div className="bg-gray-900 p-6 rounded-xl w-80">
-
-        <h1 className="text-xl font-bold mb-4">Login</h1>
+    <div className="flex h-screen items-center justify-center bg-black text-white">
+      <div className="p-6 bg-gray-900 rounded w-80 space-y-3">
 
         <input
-          className="w-full mb-2 p-2 bg-gray-800 rounded"
           placeholder="Email"
+          className="w-full p-2 bg-gray-800"
           onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
           type="password"
-          className="w-full mb-4 p-2 bg-gray-800 rounded"
           placeholder="Password"
+          className="w-full p-2 bg-gray-800"
           onChange={(e) => setPassword(e.target.value)}
         />
 
         <button
           onClick={handleLogin}
-          className="w-full bg-purple-600 py-2 rounded"
+          className="w-full bg-purple-600 p-2"
         >
           Login
         </button>

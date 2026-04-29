@@ -1,41 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
 from app.models.class_model import Class
-from app.models.user import User
-from app.schemas.class_schema import ClassCreate, ClassOut
-from app.core.security import get_current_user
+from app.deps.auth import get_current_user, admin_only
 
-router = APIRouter(prefix="/classes", tags=["Classes"])
+router = APIRouter()
 
 
-# ✅ GET ALL CLASSES (PUBLIC - frontend bunu çağırıyor)
-@router.get("/", response_model=list[ClassOut])
-def get_classes(db: Session = Depends(get_db)):
-    classes = db.query(Class).all()
-    return classes
+@router.get("/classes")
+def get_classes(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    return db.query(Class).all()
 
 
-# ✅ CREATE CLASS (AUTH REQUIRED - sadece login kullanıcı)
-@router.post("/", response_model=ClassOut)
+@router.post("/classes")
 def create_class(
-    data: ClassCreate,
+    start_time: str,
+    end_time: str,
+    capacity: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin=Depends(admin_only)
 ):
-    # ⛔ validation
-    if data.start_time >= data.end_time:
-        raise HTTPException(
-            status_code=400,
-            detail="end_time must be after start_time"
-        )
-
     new_class = Class(
-        start_time=data.start_time,
-        end_time=data.end_time,
-        capacity=data.capacity,
-        teacher_id=current_user.id
+        start_time=start_time,
+        end_time=end_time,
+        capacity=capacity,
+        teacher_id=1
     )
 
     db.add(new_class)
